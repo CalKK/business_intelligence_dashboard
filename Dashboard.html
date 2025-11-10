@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+      /* Add your custom CSS here */
+      body { padding: 20px; font-family: sans-serif; }
+      .kpi-box { 
+        padding: 15px; 
+        border-radius: 8px; 
+        background-color: #f4f4f4; 
+        text-align: center;
+        margin-bottom: 15px;
+      }
+      .kpi-title { font-size: 16px; font-weight: bold; color: #555; }
+      .kpi-value { font-size: 32px; font-weight: bold; color: #000; }
+    </style>
+  </head>
+  <body>
+    
+    <div class="container">
+      <h1 class="mb-4">My Business Dashboard</h1>
+
+      <div id="kpi-container" class="row">
+        
+        <div class="col-md-3">
+          <div class="kpi-box">
+            <div class="kpi-title">Total Revenue</div>
+            <div class="kpi-value" id="kpi-revenue">Loading...</div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="kpi-box">
+            <div class="kpi-title">Total Transactions</div>
+            <div class="kpi-value" id="kpi-transactions">Loading...</div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="kpi-box">
+            <div class="kpi-title">Unique Customers</div>
+            <div class="kpi-value" id="kpi-customers">Loading...</div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="kpi-box">
+            <div class="kpi-title">Avg. Trans. Value</div>
+            <div class="kpi-value" id="kpi-atv">Loading...</div>
+          </div>
+        </div>
+        
+      </div>
+      
+      </div>
+
+    <script>
+      // Run this function when the page loads
+      document.addEventListener("DOMContentLoaded", function() {
+        // 1. Call the server-side 'getDashboardData' function
+        google.script.run
+          .withSuccessHandler(buildDashboard)
+          .withFailureHandler(showError)
+          .getDashboardData();
+      });
+
+      // 2. This function runs when data is successfully fetched
+      function buildDashboard(data) {
+        // data is a 2D array from your Google Sheet, e.g.,
+        // [ ["TRANS DATE", "TRANS AMOUNT", "PAYER MOBILE"],
+        //   ["2025-11-08", 500, "2547..."],
+        //   ["2025-11-08", 500, "2547..."] ]
+        
+        const headers = data[0];
+        const rows = data.slice(1);
+
+        // Find column indexes (this is safer than using fixed numbers)
+        const amountCol = headers.indexOf("TRANS AMOUNT");
+        const customerCol = headers.indexOf("PAYER MOBILE");
+        const transIdCol = headers.indexOf("MPESA TRANS REF NUMBER");
+
+        if(amountCol === -1 || customerCol === -1 || transIdCol === -1) {
+          showError("Could not find required columns. Check your Central Sheet headers.");
+          return;
+        }
+
+        // --- Calculate KPIs ---
+        
+        // 1. Total Revenue
+        let totalRevenue = 0;
+        rows.forEach(row => {
+          totalRevenue += parseFloat(row[amountCol]);
+        });
+
+        // 2. Total Transactions
+        const totalTransactions = rows.length;
+        
+        // 3. Unique Customers
+        const uniqueCustomers = new Set(); // A Set automatically handles duplicates
+        rows.forEach(row => {
+          uniqueCustomers.add(row[customerCol]);
+        });
+        const totalUniqueCustomers = uniqueCustomers.size;
+        
+        // 4. Average Transaction Value (ATV)
+        const atv = totalRevenue / totalTransactions;
+
+        // --- Update the Dashboard ---
+        document.getElementById("kpi-revenue").innerText = "Ksh " + totalRevenue.toLocaleString();
+        document.getElementById("kpi-transactions").innerText = totalTransactions.toLocaleString();
+        document.getElementById("kpi-customers").innerText = totalUniqueCustomers.toLocaleString();
+        document.getElementById("kpi-atv").innerText = "Ksh " + atv.toFixed(2);
+      }
+
+      // 3. This function runs if 'getDashboardData' fails
+      function showError(error) {
+        document.getElementById("kpi-container").innerHTML = 
+          '<div class="alert alert-danger">' + error + '</div>';
+      }
+    </script>
+    
+  </body>
+</html>
